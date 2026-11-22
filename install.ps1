@@ -28,7 +28,7 @@ $VPython = Join-Path $Venv "Scripts\python.exe"
 & $VPython -m pip install --upgrade pip
 if ($LASTEXITCODE -ne 0) { throw "pip upgrade failed." }
 # Official ComfyUI NVIDIA guidance currently uses the CUDA 13.0 PyTorch wheel index.
-& $VPython -m pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu130
+& $VPython -m pip install torch torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/cu130
 if ($LASTEXITCODE -ne 0) { throw "CUDA PyTorch installation failed." }
 & $VPython -m pip install -r (Join-Path $App "requirements.txt")
 if ($LASTEXITCODE -ne 0) { throw "ComfyUI requirements installation failed." }
