@@ -27,16 +27,19 @@ if (-not (Test-Path (Join-Path $Venv "Scripts\python.exe"))) {
 $VPython = Join-Path $Venv "Scripts\python.exe"
 & $VPython -m pip install --upgrade pip
 if ($LASTEXITCODE -ne 0) { throw "pip upgrade failed." }
-# Official ComfyUI NVIDIA guidance currently uses the CUDA 13.0 PyTorch wheel index.
-& $VPython -m pip install torch torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/cu130
+# Use the PyTorch CUDA index as the ONLY index. extra-index-url can select CPU wheels from PyPI.
+& $VPython -m pip uninstall -y torch torchvision torchaudio
+& $VPython -m pip install torch==2.14.1 torchvision==0.29.1 --index-url https://download.pytorch.org/whl/cu130
 if ($LASTEXITCODE -ne 0) { throw "CUDA PyTorch installation failed." }
+& $VPython -c "import torch; assert torch.cuda.is_available(), 'CUDA is not available'; print(torch.__version__, torch.version.cuda, torch.cuda.get_device_name(0))"
+if ($LASTEXITCODE -ne 0) { throw "PyTorch installed without working CUDA. Stopping before ComfyUI setup." }
 & $VPython -m pip install -r (Join-Path $App "requirements.txt")
 if ($LASTEXITCODE -ne 0) { throw "ComfyUI requirements installation failed." }
 $Models = Join-Path $App "models"
 @("checkpoints","diffusion_models","text_encoders","vae","loras","clip_vision") | ForEach-Object { New-Item -ItemType Directory -Force -Path (Join-Path $Models $_) | Out-Null }
 $Check = & $VPython -c "import torch; print('torch',torch.__version__); print('cuda_available',torch.cuda.is_available()); print('gpu',torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'NONE'); print('vram_gb',round(torch.cuda.get_device_properties(0).total_memory/1024**3,2) if torch.cuda.is_available() else 0)"
 $Check | Tee-Object -FilePath (Join-Path $Root "install-check.txt")
-if ($LASTEXITCODE -ne 0) { throw "PyTorch GPU check failed." }
+if ($LASTEXITCODE -ne 0 -or ($Check -join "`n") -notmatch "cuda_available True") { throw "GPU validation failed: CUDA is unavailable. Do not launch ComfyUI yet." }
 @"
 @echo off
 cd /d "$App"
